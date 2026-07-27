@@ -17,6 +17,7 @@ const MapView = dynamic<MapViewProps>(
 );
 
 export default function Home() {
+  // for a love that never left - Prav
   const [showMap, setShowMap] = useState(false);
   const [centers, setCenters] = useState<EWasteCenterWithZone[]>([]);
   const [mapCenter, setMapCenter] = useState<[number, number]>([12.9716, 77.5946]);
