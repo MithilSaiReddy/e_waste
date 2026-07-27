@@ -1,11 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
 import dynamic from "next/dynamic";
+import { AnimatePresence, motion } from "motion/react";
 import { LocationInput } from "./components/LocationInput";
 import { CenterDetails } from "./components/CenterDetails";
+import { MobileCentersSheet } from "./components/MobileCentersSheet";
 import { getCentersByZone, getAllBangaloreCenters, BangaloreZone, EWasteCenterWithZone } from "./data/centers";
+import { useMediaQuery } from "./hooks/useMediaQuery";
 import type { MapViewProps } from "./components/MapView";
+import { ArrowLeft, Search } from "lucide-react";
 
 const MapView = dynamic<MapViewProps>(
   () => import("./components/MapView").then((m) => m.MapView),
@@ -18,8 +22,27 @@ export default function Home() {
   const [mapCenter, setMapCenter] = useState<[number, number]>([12.9716, 77.5946]);
   const [selectedCenter, setSelectedCenter] = useState<EWasteCenterWithZone | null>(null);
   const [selectedZone, setSelectedZone] = useState<string>("");
+  const [showSheet, setShowSheet] = useState(false);
+  const [mapSearchQuery, setMapSearchQuery] = useState("");
+  const isMobile = useMediaQuery("(max-width: 767px)");
 
-  const handleZoneSelect = (zone: BangaloreZone | "all") => {
+  const matchingIds = useMemo(() => {
+    const q = mapSearchQuery.trim().toLowerCase();
+    if (!q) return null;
+    return new Set(
+      centers
+        .filter((c) => c.name.toLowerCase().includes(q) || c.address.toLowerCase().includes(q))
+        .map((c) => c.id),
+    );
+  }, [centers, mapSearchQuery]);
+
+  const filteredCenters = useMemo(() => {
+    if (!matchingIds) return centers;
+    return centers.filter((c) => matchingIds.has(c.id));
+  }, [centers, matchingIds]);
+
+  const handleZoneSelect = useCallback((zone: BangaloreZone | "all") => {
+    setMapSearchQuery("");
     if (zone === "all") {
       const { centers: allCenters, centerPoint } = getAllBangaloreCenters();
       setCenters(allCenters);
@@ -32,85 +55,105 @@ export default function Home() {
       setSelectedZone(zone);
     }
     setShowMap(true);
-  };
+  }, []);
 
-  const handleCenterClick = (center: EWasteCenterWithZone) => {
-    setSelectedCenter(center);
-  };
-
-  const handleCloseDetails = () => {
+  const handleBack = useCallback(() => {
+    setShowMap(false);
     setSelectedCenter(null);
-  };
+    setShowSheet(false);
+    setMapSearchQuery("");
+  }, []);
+
+  const handleCenterClick = useCallback((center: EWasteCenterWithZone) => {
+    setSelectedCenter(center);
+  }, []);
+
+  const handleCloseDetails = useCallback(() => {
+    setSelectedCenter(null);
+  }, []);
 
   return (
-    <div className="size-full flex flex-col bg-background">
-      {!showMap ? (
-        <div className="flex-1 flex items-center justify-center p-4">
-          <LocationInput onZoneSelect={handleZoneSelect} />
-        </div>
-      ) : (
-        <div className="flex-1 flex flex-col">
-          <div className="bg-card border-b border-border p-4 md:p-6 shadow-sm">
-            <div className="max-w-7xl mx-auto flex items-center justify-between">
-              <div>
-                <h2>E-Waste Centers - {selectedZone}</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {centers.length} collection center{centers.length !== 1 ? "s" : ""} found
-                </p>
-              </div>
-              <button
-                onClick={() => setShowMap(false)}
-                className="bg-secondary hover:bg-accent text-secondary-foreground px-4 py-2 rounded-lg transition-colors"
-              >
-                Change Zone
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1">
-            <MapView
-              centers={centers}
-              center={mapCenter}
-              onCenterClick={handleCenterClick}
-            />
-          </div>
-
-          <div className="md:hidden bg-card border-t border-border p-4 max-h-56 overflow-y-auto">
-            <h3 className="mb-3">All Centers ({centers.length})</h3>
-            <div className="space-y-2">
-              {centers.map((center) => (
-                <button
-                  key={center.id}
-                  onClick={() => handleCenterClick(center)}
-                  className="w-full text-left p-3 bg-muted hover:bg-accent rounded-lg transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-2 mb-1">
-                    <p className="font-medium flex-1">{center.name}</p>
-                    {center.rating && (
-                      <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 px-2 py-0.5 rounded-full flex-shrink-0">
-                        ⭐ {center.rating}
-                      </span>
-                    )}
+    <div className="size-full flex flex-col bg-background overflow-hidden">
+      <AnimatePresence mode="wait">
+        {!showMap ? (
+          <motion.div
+            key="landing"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.3 }}
+            className="flex-1 overflow-y-auto"
+          >
+            <LocationInput onZoneSelect={handleZoneSelect} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="map"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.3 }}
+            className="flex-1 flex flex-col"
+          >
+            <div className="bg-card border-b border-border p-3 md:p-4 shadow-sm">
+              <div className="max-w-7xl mx-auto flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={handleBack}
+                    className="p-2 hover:bg-accent rounded-xl transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                  <div>
+                    <h2 className="text-base md:text-lg">E-Waste Centers</h2>
+                    <p className="text-xs md:text-sm text-muted-foreground">
+                      {selectedZone} &middot; {centers.length} center{centers.length !== 1 ? "s" : ""}
+                      {mapSearchQuery.trim() && (
+                        <span className="ml-1">
+                          &middot; <span className="text-green-600">{filteredCenters.length} matched</span>
+                        </span>
+                      )}
+                    </p>
                   </div>
-                  {center.type && (
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">
-                      {center.type}
-                    </p>
-                  )}
-                  <p className="text-sm text-muted-foreground truncate">
-                    {center.address}
-                  </p>
-                  {center.pickup && (
-                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                      🚚 {center.pickup}
-                    </p>
-                  )}
-                </button>
-              ))}
+                </div>
+                {isMobile && (
+                  <button
+                    onClick={() => setShowSheet((p) => !p)}
+                    className="bg-secondary hover:bg-accent text-secondary-foreground px-4 py-2 rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    {showSheet ? "Map" : `List${mapSearchQuery.trim() ? ` (${filteredCenters.length})` : ""}`}
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+
+            <div className="flex-1 relative">
+              <MapView
+                centers={centers}
+                center={mapCenter}
+                onCenterClick={handleCenterClick}
+                selectedCenterId={selectedCenter?.id}
+                searchQuery={mapSearchQuery}
+                onSearchChange={setMapSearchQuery}
+                matchingIds={matchingIds}
+              />
+            </div>
+
+            {isMobile && showSheet && (
+              <MobileCentersSheet
+                centers={filteredCenters}
+                selectedZone={selectedZone}
+                onCenterClick={(center) => {
+                  handleCenterClick(center);
+                  setShowSheet(false);
+                }}
+                onClose={() => setShowSheet(false)}
+              />
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {selectedCenter && (
         <CenterDetails center={selectedCenter} onClose={handleCloseDetails} />
