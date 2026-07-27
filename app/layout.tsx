@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "leaflet/dist/leaflet.css";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
 import { PWARegister } from "./components/PWARegister";
 
 export const metadata: Metadata = {
@@ -38,6 +39,7 @@ export default function RootLayout({
     <html lang="en" className="h-full">
       <body className="size-full">
         <PWARegister />
+        <Analytics />
         {children}
       </body>
     </html>

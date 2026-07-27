@@ -1,5 +1,6 @@
+import { useState } from "react";
 import {
-  X, MapPin, Clock, Phone, Mail, CheckCircle, Star, Truck, Building2,
+  X, MapPin, Clock, Phone, Mail, CheckCircle, Star, Truck, Building2, Share2,
 } from "lucide-react";
 import { Drawer } from "vaul";
 import { useMediaQuery } from "../hooks/useMediaQuery";
@@ -26,6 +27,21 @@ interface CenterDetailsProps {
 }
 
 function CenterContent({ center, onClose }: CenterDetailsProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    const mapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${center.lat},${center.lng}`;
+    const text = `♻️ E-Waste Collection Center\n\n${center.name}\n${center.address}\n\nRecycle your e-waste responsibly`;
+
+    if (navigator.share) {
+      await navigator.share({ title: center.name, text, url: mapsUrl });
+    } else {
+      await navigator.clipboard.writeText(`${text}\n\n${mapsUrl}`);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
   return (
     <div className="bg-card w-full max-h-[90vh] overflow-y-auto">
       <div className="sticky top-0 bg-card border-b border-border p-4 flex items-center justify-between z-10">
@@ -38,9 +54,23 @@ function CenterContent({ center, onClose }: CenterDetailsProps) {
             </div>
           )}
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-accent rounded-full ml-4 flex-shrink-0">
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleShare}
+            className="p-2 hover:bg-accent rounded-full transition-colors relative"
+            title="Share"
+          >
+            <Share2 className="w-5 h-5" />
+            {copied && (
+              <span className="absolute -top-1 -right-1 text-[10px] bg-green-500 text-white px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                Copied!
+              </span>
+            )}
+          </button>
+          <button onClick={onClose} className="p-2 hover:bg-accent rounded-full flex-shrink-0">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div className="p-6 space-y-6">
